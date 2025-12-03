@@ -4,15 +4,69 @@ import VectorCanvas from './components/VectorCanvas';
 import InfoPanel from './components/InfoPanel';
 import { VectorData } from './types';
 
-// Default example from the prompt
 const DEFAULT_XML = `<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="200dp"
-    android:height="200dp"
-    android:viewportWidth="1024"
-    android:viewportHeight="1024">
-  <path
-      android:pathData="M512,62C264.5,62 62,264.5 62,512s202.5,450 450,450c247.5,0 450,-202.5 450,-450S759.5,62 512,62zM512,887C302,887 137,722 137,512S302,137 512,137 887,302 887,512 722,887 512,887zM699.5,324.5c-15,-15 -37.5,-15 -52.5,-0L512,459.5l-135,-135c-15,-15 -37.5,-15 -52.5,-0 -15,15 -15,37.5 0,52.5L459.5,512l-135,135c-15,15 -15,37.5 -0,52.5 15,15 37.5,15 52.5,0L512,564.5l135,135c15,15 37.5,15 52.5,0s15,-37.5 0,-52.5L564.5,512l135,-135C714.5,362 714.5,339.5 699.5,324.5z"
-      android:fillColor="#272636"/>
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="1267dp"
+    android:height="1267dp"
+    android:viewportWidth="1267"
+    android:viewportHeight="1267">
+  <group>
+    <clip-path
+        android:pathData="M0,0h1267v1267h-1267z"/>
+    <path
+        android:pathData="M59,60h1148v1148h-1148z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0"/>
+    <path
+        android:pathData="M269,60L997,60A210,210 0,0 1,1207 270L1207,998A210,210 0,0 1,997 1208L269,1208A210,210 0,0 1,59 998L59,270A210,210 0,0 1,269 60z">
+      <aapt:attr name="android:fillColor">
+        <gradient 
+            android:startX="633"
+            android:startY="60"
+            android:endX="633"
+            android:endY="1208"
+            android:type="linear">
+          <item android:offset="0" android:color="#FF1FA1FF"/>
+          <item android:offset="1" android:color="#FF095CFF"/>
+        </gradient>
+      </aapt:attr>
+    </path>
+    <path
+        android:pathData="M321,690m-117,0a117,117 0,1 1,234 0a117,117 0,1 1,-234 0"
+        android:fillColor="#C5D3FF"/>
+    <path
+        android:pathData="M345.3,575.9L574.9,346.3A81,81 81.6,0 1,689.5 346.3L920.3,577.1A81,81 0,0 1,920.3 691.6L690.6,921.3A81,81 68.2,0 1,576.1 921.3L345.3,690.5A81,81 76.1,0 1,345.3 575.9z"
+        android:fillColor="#FFFFFF"/>
+    <path
+        android:pathData="M511,494h244v280h-244z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0"/>
+    <group>
+      <clip-path
+          android:pathData="M511,494h244v280h-244z"/>
+      <path
+          android:pathData="M716.7,713.6C717,714.2 717.5,714.3 717.9,714C718.3,713.7 718.4,713 718.2,712.5L647.8,567.2C644.7,560.7 641,556.8 636.8,555.3C635.6,554.9 634.3,554.7 633,554.7C631.7,554.7 630.4,554.9 629.2,555.3C625,556.8 621.3,560.7 618.2,567.2L547.8,712.5C547.6,713 547.7,713.7 548.1,714C548.5,714.3 549,714.2 549.3,713.6L619.7,568.4C622.6,562.3 626,558.6 630,557.3C630.9,557 632,556.9 633,556.9C634,556.9 635,557 636,557.3C639.9,558.6 642.8,562.3 645.8,568.4L716.7,713.6Z"
+          android:fillColor="#449AFF"
+          android:fillAlpha="0"
+          android:fillType="evenOdd"/>
+      <path
+          android:pathData="M717.9,714C718.3,713.7 718.4,713 718.2,712.5L647.8,567.2C644.7,560.7 641,556.8 636.8,555.3C635.6,554.9 634.3,554.7 633,554.7C631.7,554.7 630.4,554.9 629.2,555.3C625,556.8 621.3,560.7 618.2,567.2L547.8,712.5C547.6,713 547.7,713.7 548.1,714C548.5,714.3 549,714.2 549.3,713.6L619.7,568.4C622.6,562.3 626,558.6 630,557.3C630.9,557 632,556.9 633,556.9C634,556.9 635,557 636,557.3C639.9,558.6 642.8,562.3 645.8,568.4L716.7,713.6C717,714.2 717.5,714.3 717.9,714Z"
+          android:strokeWidth="65.000000"
+          android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+          <gradient 
+              android:startX="633"
+              android:startY="714.2"
+              android:endX="633"
+              android:endY="554.7"
+              android:type="linear">
+            <item android:offset="0" android:color="#FF449AFF"/>
+            <item android:offset="1" android:color="#93449AFF"/>
+          </gradient>
+        </aapt:attr>
+      </path>
+    </group>
+  </group>
 </vector>`;
 
 const App: React.FC = () => {

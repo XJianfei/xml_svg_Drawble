@@ -1,8 +1,11 @@
 export interface PathElement {
   pathData: string;
-  fillColor: string;
+  fillColor?: string;
+  fillAlpha?: number;
   strokeColor?: string;
   strokeWidth?: number;
+  strokeAlpha?: number;
+  fillType?: 'nonzero' | 'evenodd';
 }
 
 export interface VectorData {

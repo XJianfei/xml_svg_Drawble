@@ -3,8 +3,39 @@ import { VectorData } from '../types';
 
 interface VectorCanvasProps {
   data: VectorData | undefined;
-  targetSize: number; // e.g., 100 for 100x100
+  targetSize: number;
 }
+
+/**
+ * Converts Android Hex color (#AARRGGBB or #RRGGBB) + Alpha attribute
+ * into a CSS rgba string.
+ */
+const getRgbaColor = (hex: string | undefined, alphaAttr: number = 1): string | undefined => {
+  if (!hex) return undefined;
+  
+  let cleanHex = hex.replace('#', '');
+  let r = 0, g = 0, b = 0, a = 1;
+
+  if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.substring(0, 2), 16);
+    g = parseInt(cleanHex.substring(2, 4), 16);
+    b = parseInt(cleanHex.substring(4, 6), 16);
+  } else if (cleanHex.length === 8) {
+    // Android is AARRGGBB
+    const alphaHex = parseInt(cleanHex.substring(0, 2), 16);
+    a = alphaHex / 255;
+    r = parseInt(cleanHex.substring(2, 4), 16);
+    g = parseInt(cleanHex.substring(4, 6), 16);
+    b = parseInt(cleanHex.substring(6, 8), 16);
+  } else {
+    return hex; // Fallback for 3 digit or named colors
+  }
+
+  // Combine the alpha from the hex and the alpha from the attribute
+  const finalAlpha = a * alphaAttr;
+
+  return `rgba(${r}, ${g}, ${b}, ${finalAlpha.toFixed(3)})`;
+};
 
 const VectorCanvas: React.FC<VectorCanvasProps> = ({ data, targetSize }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,35 +51,37 @@ const VectorCanvas: React.FC<VectorCanvasProps> = ({ data, targetSize }) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Calculate Scale
-    // We want the viewport coordinate system to fit into the targetSize (100px)
-    // Scale X = Target Width / Viewport Width
     const scaleX = targetSize / data.viewportWidth;
     const scaleY = targetSize / data.viewportHeight;
 
-    // Use save/restore to ensure state doesn't bleed between renders if we had animations
     ctx.save();
-    
-    // Apply the scaling. 
-    // Now, any drawing command using viewport coordinates will be scaled down/up to the canvas size.
     ctx.scale(scaleX, scaleY);
 
-    // Draw Paths
     data.paths.forEach((path) => {
       try {
-        // Path2D parses SVG path data strings natively
         const p2d = new Path2D(path.pathData);
         
-        ctx.fillStyle = path.fillColor;
-        ctx.fill(p2d);
-        
-        // Optional: Support stroke if extracted (omitted for this specific requirement but good practice)
-        // if (path.strokeColor) {
-        //   ctx.strokeStyle = path.strokeColor;
-        //   ctx.lineWidth = path.strokeWidth || 1;
-        //   ctx.stroke(p2d);
-        // }
+        // Handle Fill
+        if (path.fillColor) {
+          const rgba = getRgbaColor(path.fillColor, path.fillAlpha);
+          if (rgba) {
+            ctx.fillStyle = rgba;
+            // Use the specific fill rule (nonzero or evenodd)
+            ctx.fill(p2d, path.fillType || 'nonzero');
+          }
+        }
+
+        // Handle Stroke
+        if (path.strokeWidth && path.strokeWidth > 0 && path.strokeColor) {
+          const rgba = getRgbaColor(path.strokeColor, path.strokeAlpha);
+          if (rgba) {
+            ctx.strokeStyle = rgba;
+            ctx.lineWidth = path.strokeWidth;
+            ctx.stroke(p2d);
+          }
+        }
       } catch (err) {
-        console.error("Failed to draw path:", path.pathData, err);
+        console.warn("Failed to render path:", path.pathData);
       }
     });
 

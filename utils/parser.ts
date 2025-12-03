@@ -1,26 +1,28 @@
 import { VectorData, PathElement, ParseResult } from '../types';
 
 /**
- * Android hex colors often come as #AARRGGBB.
- * CSS expects #RRGGBBAA.
- * This helper converts Android format to CSS format if necessary.
+ * Helper to extract an attribute value from a string block.
+ * Matches android:name="value" taking newlines and spaces into account.
  */
-const normalizeColor = (hex: string | undefined): string => {
-  if (!hex) return '#000000'; // Default to black
-  
-  // Remove starting '@' or specific resource references if strictly simple hex
-  if (!hex.startsWith('#')) return '#000000';
+const getAttr = (text: string, attrName: string): string | null => {
+  // Regex explanation:
+  // 1. Match the attribute name (e.g. android:pathData)
+  // 2. Followed by =
+  // 3. Followed by quotes (single or double)
+  // 4. Capture the content inside quotes
+  const regex = new RegExp(`${attrName}\\s*=\\s*["']([^"']+)["']`);
+  const match = text.match(regex);
+  return match ? match[1] : null;
+};
 
-  const cleanHex = hex.replace('#', '');
-  
-  // Handle #AARRGGBB -> #RRGGBBAA
-  if (cleanHex.length === 8) {
-    const alpha = cleanHex.substring(0, 2);
-    const rgb = cleanHex.substring(2);
-    return `#${rgb}${alpha}`;
-  }
-  
-  return hex;
+/**
+ * Helper to find the first color inside a gradient definition
+ * Used as a fallback when the main path has a gradient but no solid color.
+ */
+const findFallbackGradientColor = (content: string): string | null => {
+  // Look for <item ... android:color="..." /> inside the path's children
+  const match = content.match(/android:color\s*=\s*"([^"]+)"/);
+  return match ? match[1] : null;
 };
 
 export const parseVectorXml = (xml: string): ParseResult => {
@@ -29,49 +31,93 @@ export const parseVectorXml = (xml: string): ParseResult => {
       return { success: false, error: 'Empty input' };
     }
 
-    // 1. Extract Root Attributes using Regex
-    // Look for android:viewportWidth="..."
-    const vpWMatch = xml.match(/android:viewportWidth\s*=\s*"([^"]+)"/);
-    const vpHMatch = xml.match(/android:viewportHeight\s*=\s*"([^"]+)"/);
-    
-    // Look for android:width="..." (might contain 'dp')
-    const wMatch = xml.match(/android:width\s*=\s*"([^"]+)"/);
-    const hMatch = xml.match(/android:height\s*=\s*"([^"]+)"/);
+    // 1. Extract Root Attributes
+    const viewportWidthStr = getAttr(xml, 'android:viewportWidth');
+    const viewportHeightStr = getAttr(xml, 'android:viewportHeight');
+    const widthStr = getAttr(xml, 'android:width');
+    const heightStr = getAttr(xml, 'android:height');
 
-    if (!vpWMatch || !vpHMatch) {
+    if (!viewportWidthStr || !viewportHeightStr) {
       return { 
         success: false, 
         error: 'Could not find android:viewportWidth or android:viewportHeight attributes.' 
       };
     }
 
-    const viewportWidth = parseFloat(vpWMatch[1]);
-    const viewportHeight = parseFloat(vpHMatch[1]);
-    
-    // Parse width/height, stripping 'dp' if present
-    const width = wMatch ? parseFloat(wMatch[1].replace('dp', '')) : 100;
-    const height = hMatch ? parseFloat(hMatch[1].replace('dp', '')) : 100;
+    const viewportWidth = parseFloat(viewportWidthStr);
+    const viewportHeight = parseFloat(viewportHeightStr);
+    const width = widthStr ? parseFloat(widthStr.replace('dp', '')) : 100;
+    const height = heightStr ? parseFloat(heightStr.replace('dp', '')) : 100;
 
-    // 2. Extract Paths
-    // We match all <path ... /> tags. 
-    // Note: This regex assumes standard formatting. It captures the entire tag content.
-    const pathTagRegex = /<path([^>]+)\/>/g;
+    // 2. Extract Paths using a Split Strategy
+    // Splitting by '<path' allows us to iterate over every path tag, 
+    // access its immediate attributes, and also see its children (for gradients) 
+    // before the next path starts.
+    const segments = xml.split(/<path\s+/);
     const paths: PathElement[] = [];
 
-    let match;
-    while ((match = pathTagRegex.exec(xml)) !== null) {
-      const tagContent = match[1];
+    // Start from 1 because the first segment is the header (before the first <path)
+    for (let i = 1; i < segments.length; i++) {
+      const segment = segments[i];
 
-      // Inside the path tag, find pathData and fillColor
-      const pathDataMatch = tagContent.match(/android:pathData\s*=\s*"([^"]+)"/);
-      const fillColorMatch = tagContent.match(/android:fillColor\s*=\s*"([^"]+)"/);
+      // The segment starts with the attributes of the path.
+      // It ends (conceptually) at the start of the next <path (which is the split delimiter).
+      // However, we need to separate the opening tag attributes from the children.
+      // The opening tag ends at the first '>' or '/>'.
+      const tagEndIndex = segment.search(/\/?>/);
       
-      if (pathDataMatch) {
-        paths.push({
-          pathData: pathDataMatch[1],
-          fillColor: normalizeColor(fillColorMatch ? fillColorMatch[1] : undefined)
-        });
+      if (tagEndIndex === -1) continue; // Should not happen in valid XML
+
+      const attributesBlock = segment.substring(0, tagEndIndex);
+      const contentBlock = segment.substring(tagEndIndex); // Children and closing tags
+
+      const pathData = getAttr(attributesBlock, 'android:pathData');
+      
+      // If no pathData, skip (could be malformed)
+      if (!pathData) continue;
+
+      let fillColor = getAttr(attributesBlock, 'android:fillColor');
+      const fillAlphaStr = getAttr(attributesBlock, 'android:fillAlpha');
+      const fillAlpha = fillAlphaStr ? parseFloat(fillAlphaStr) : 1.0;
+      
+      let strokeColor = getAttr(attributesBlock, 'android:strokeColor');
+      const strokeWidthStr = getAttr(attributesBlock, 'android:strokeWidth');
+      const strokeWidth = strokeWidthStr ? parseFloat(strokeWidthStr) : 0;
+      const strokeAlphaStr = getAttr(attributesBlock, 'android:strokeAlpha');
+      const strokeAlpha = strokeAlphaStr ? parseFloat(strokeAlphaStr) : 1.0;
+
+      const fillTypeStr = getAttr(attributesBlock, 'android:fillType');
+      const fillType = (fillTypeStr && fillTypeStr.toLowerCase() === 'evenodd') ? 'evenodd' : 'nonzero';
+
+      // Advanced Color Handling:
+      // If fillColor is missing, OR it is explicitly transparent (#00000000), 
+      // check if there is a complex color (gradient) in the children <aapt:attr>.
+      // We can't render the gradient perfectly with regex, but we can pick a representative color.
+      if (!fillColor || fillColor === '#00000000') {
+        // Simple heuristic: check if we are looking for a fill gradient
+        if (contentBlock.includes('android:fillColor')) {
+           const fallback = findFallbackGradientColor(contentBlock);
+           if (fallback) fillColor = fallback;
+        }
       }
+
+      // Same logic for stroke
+      if ((!strokeColor || strokeColor === '#00000000') && strokeWidth > 0) {
+        if (contentBlock.includes('android:strokeColor')) {
+          const fallback = findFallbackGradientColor(contentBlock);
+          if (fallback) strokeColor = fallback;
+        }
+      }
+
+      paths.push({
+        pathData,
+        fillColor: fillColor || undefined, // undefined lets the renderer decide (or skip fill)
+        fillAlpha,
+        strokeColor: strokeColor || undefined,
+        strokeWidth,
+        strokeAlpha,
+        fillType
+      });
     }
 
     if (paths.length === 0) {
