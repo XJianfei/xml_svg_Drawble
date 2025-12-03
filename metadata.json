@@ -1,0 +1,5 @@
+{
+  "name": "Android Vector Drawable Viewer",
+  "description": "A tool to parse Android XML Vector Drawables using regex and render them on a canvas with viewport scaling.",
+  "requestFramePermissions": []
+}
